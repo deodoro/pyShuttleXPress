@@ -18,8 +18,10 @@ import subprocess
 config = [("*", {"rings": {"outer": [], "inner": (["]"], ["["])}, "buttons": {0: ["keyb", Key.ctrl, 'z'], 1: ["keyb", Key.shift, Key.ctrl, 'z'], 2: [], 3: [], 4: []}})]
 configs = [
     ("MyPaint", {"rings": {"inner": ([Key.ctrl, Key.left], [Key.ctrl, Key.right])}, "buttons": {0: ["keyb", Key.ctrl, 'z'], 1: ["keyb", Key.ctrl, 'y'], 2: ["mouse", Button.middle]}}),
-    ("Xournal++", {"rings": {"inner": ([Key.ctrl, "-"], [Key.ctrl, "+"])}, "buttons": {0: ["keyb", Key.ctrl, 'z'], 1: ["keyb", Key.ctrl, 'y'], 2: ["mouse", Button.middle]}})
+    ("Xournal++", {"rings": {"inner": ([Key.ctrl, "-"], [Key.ctrl, "+"])}, "buttons": {0: ["keyb", Key.ctrl, 'z'], 1: ["keyb", Key.ctrl, 'y'], 2: ["mouse", Button.middle]}}),
+    ("Krita", {"rings": {}, "buttons": {2: ["keyb", Key.space]}})
 ]
+
 # Merge configs with the default ("*"), looking up when we receive button events is less complex this way
 def merge_config(orig, new):
     global_config = [v for v in orig if v[0] == "*"]
@@ -38,7 +40,7 @@ keyboard = KeyboardController()
 # Gets focus windows title
 def GetActiveWindowTitle():
     window = subprocess.Popen(["xprop", "-root", "_NET_ACTIVE_WINDOW"], stdout=subprocess.PIPE).communicate()[0].strip().split()[-2]
-    return subprocess.Popen(["xprop", "-id", window, "WM_NAME"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].strip().split(b"\"", 1)[-1].decode("utf8")
+    return subprocess.Popen(["xprop", "-id", window, "_NET_WM_NAME"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].strip().split(b"\"", 1)[-1].decode("utf8")
 
 def xor(i):
     return (i[0] or i[1]) and not (i[0] and i[1])
@@ -46,16 +48,18 @@ def xor(i):
 # If a button changed state... btn -> (button_number, 1 if down 0 if up)
 def on_change_btn(btn):
     window_title = GetActiveWindowTitle()
+    # print("active window=%s" % window_title)
     # find a config and simulate click/key stroke
     for item in config:
         if (item[0] in window_title or item[0] == "*") and item[1]["buttons"][btn[0]]:
             items = item[1]["buttons"][btn[0]]
-            if items[0] == "keyb" and btn[1]:
-                for i in items[1:-1]:
-                    keyboard.press(i)
-                keyboard.tap(items[-1])
-                for i in reversed(items[1:-1]):
-                    keyboard.release(i)
+            if items[0] == "keyb":
+                if btn[1]:
+                    for i in items[1:]:
+                        keyboard.press(i)
+                else:
+                    for i in reversed(items[1:]):
+                        keyboard.release(i)
                 break
             elif items[0] == "mouse":
                 if btn[1]:
